@@ -1,3 +1,4 @@
+module Spin1Utls
 
 """
 # state2id - 1 method function
@@ -90,7 +91,7 @@ determining matrix elements.
 function spinflips(id::Int, n::Int, i::Int, j::Int)
   # recover state from id number
   state = broadcast(-, digits(id-1, base=3, pad=n), 1)
-  coupstates::Array{Int64, 1}
+  coupstates = Int64[]
   if state[i]<1 && state[j] > -1
     state[i] += 1
     state[j] -= 1
@@ -106,16 +107,34 @@ function spinflips(id::Int, n::Int, i::Int, j::Int)
 end
 
 """
-# inith - 1 method function
+# inith - 2 method function
 
-#
+## Methods
+
+  * inith(Bool, Int)
+  * inith(Bool, Int, Float64)
+
+### Arugments
+
+  * bc    -   boundary conditions on the lattice
+  * n     -   number of sites on lattice
+  * D     -   uniaxial anisotropy term
+
+### Returns
+
+  * Array{Float, 2}   -   Hamiltonian of spin1 chain
+
+## Description 
+
+This function create the Hamiltonian of a spin-1 AFM Heisenberg chain with OBC
+or PBC.
 """
 function inith(bc::Bool, n::Int)
   H = zeros(3^n, 3^n) # initialize empty Hamiltonian
   for a=1:3^n
     bc ? m=n : m=n-1 # select number of bonds based on boundary conditions
     for i=1:m
-      j = (1%n)+1 # determine nearest neighbour
+      j = (i%n)+1 # determine nearest neighbour
       H[a, a] += spin(a, n, i)*spin(a, n, j)
       coupstates = spinflips(a, n, i, j)
       for b in coupstates
@@ -126,4 +145,108 @@ function inith(bc::Bool, n::Int)
   return H
 end
 
+function inith(bc::Bool, n::Int, D::Float64)
+  H = zeros(3^n, 3^n) # initialize empty Hamiltonian
+  for a=1:3^n
+    bc ? m=n : m=n-1 # select number of bonds based on boundary conditions
+    for i=1:m
+      j = (i%n)+1 # determine nearest neighbour
+      s1 = spin(a, n, i) 
+      s2 = spin(a, n, j) 
+      H[a, a] += s1*s2 + (D/2.0)*(s1^2 + s2^2)
+      coupstates = spinflips(a, n, i, j)
+      for b in coupstates
+        H[a, b] += 1
+      end
+    end
+  end
+  return H
+end
 
+"""
+# initMagBlock - 2 method function
+
+## Methods
+
+  * inith(Bool, Int, Int)
+  * inith(Bool, Int, Int, Float64)
+
+### Arugments
+
+  * bc    -   boundary conditions on the lattice
+  * n     -   number of sites on lattice
+  * mz    -   z-direction magnetization to be constructed
+  * D     -   uniaxial anisotropy term
+
+### Returns
+
+  * Array{Float, 2}   -   Hamiltonian of spin1 chain
+
+## Description 
+
+This function create the Hamiltonian of a spin-1 AFM Heisenberg chain with OBC
+or PBC.
+"""
+function initMagBlock(bc::Bool, n::Int, mz::Int)
+  # select all states with the given magnetization to construct their subblock
+  mz_states = Int64[]
+  for a=1:3^n
+    tot::Int = 0
+    for i=1:n
+      tot += spin(a, n, i)
+    end
+    if tot == mz
+      push!(mz_states, a)
+    end
+  end
+  H = zeros(length(mz_states), length(mz_states))
+  for a=1:length(mz_states)
+    bc ? m=n : m=n-1  # select appropriate boundary conditions
+    # compute matrix elements for this state
+    for i=1:m
+      j = (i%n)+1
+      s1 = spin(mz_states[a], n, i)
+      s2 = spin(mz_states[a], n, j)
+      H[a, a] += s1*s2
+      coupstates = spinflips(mz_states[a], n, i, j)
+      for bstate in coupstates
+        b = findfirst(mz_states, bstate)
+        H[a, b] += 1
+      end
+    end
+  end
+  return H
+end
+
+function initMagBlock(bc::Bool, n::Int, mz::Int, D::Float64)
+  # select all states with the given magnetization to construct their subblock
+  mz_states = Int64[]
+  for a=1:3^n
+    tot::Int = 0
+    for i=1:n
+      tot += spin(a, n, i)
+    end
+    if tot == mz
+      push!(mz_states, a)
+    end
+  end
+  H = zeros(length(mz_states), length(mz_states))
+  for (i, a) in enumerate(mz_states)
+    bc ? m=n : m=n-1  # select appropriate boundary conditions
+    # compute matrix elements for this state
+    for i=1:m
+      j = (i%n)+1
+      s1 = spin(a, n, i)
+      s2 = spin(a, n, j)
+      H[i, i] += s1*s2 + (D/2.0)*(s1^2 + s2^2)
+      coupstates = spinflips(a, n, i, j)
+      for b in coupstates
+        j = findfirst(mz_states, b)
+        H[i, j] += 1
+      end
+    end
+  end
+  return H
+end
+
+end # module Spin1Utls

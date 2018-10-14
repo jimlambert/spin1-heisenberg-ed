@@ -1,6 +1,9 @@
 # main function for heisenberg diagonalization
 
-include("Utls.jl")
+include("Spin1Utls.jl")
 
-import Utls
+import Spin1Utls
+
+darr = linspace(-0.4, 0.4, 21)
+
 
