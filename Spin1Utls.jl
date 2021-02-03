@@ -1,5 +1,65 @@
 module Spin1Utls
 
+export initMagBlock
+
+
+"""
+# chain - 1 member function
+
+## Methods
+
+  * chain(bc::Bool, n::Int)
+
+### Arguments
+
+"""
+function chain(bc::Bool, n::Int)
+  
+  bonds = []
+
+  bc ? m=n : m=n-1
+
+  for i=1:m
+    push!(bonds,[i, (i%n) + 1])
+  end
+
+  return bonds
+
+end
+
+
+"""
+# isosqlatt -  1 member function
+
+"""
+function isosqlatt(bcx::Bool, bcy::Bool, lx::Int, ly::Int)
+
+  bonds = []
+
+  bcx ? mx = lx : mx = lx-1
+  bcy ? my = ly : my = ly-1
+
+  for y=1:ly
+    for x=1:mx
+      
+      xmin = (y-1)*lx
+      xmax = y*lx
+      push!(bonds,[x+xmin, (x+xmin)%xmax + 1 + (xmin*((x)÷lx))])
+
+    end
+  end
+
+  for y=1:my
+    for x=1:lx
+      xmin = (y-1)*lx
+      push!(bonds,[x+xmin, (x+xmin+lx)%(lx*ly+1) + (x+xmin+lx)÷(lx*ly+1)])
+    end
+  end
+
+  return bonds
+end
+
+
 """
 # state2id - 1 method function
 
@@ -35,6 +95,7 @@ function state2id(state::Array{Int64, 1})
   end
   return sum+1
 end
+
 
 """
 # spin - 1 method function
@@ -106,6 +167,31 @@ function spinflips(id::Int, n::Int, i::Int, j::Int)
   return coupstates
 end
 
+
+function doubspinflips(id::Int, n::Int, i::Int, j::Int)
+  
+  state = broadcast(-, digits(id-1, base=3, pad=n), 1)
+  
+  coupstates = Int64[]
+
+  if state[i]==1 && state[j]==-1
+    state[i] -= 2
+    state[j] += 2
+    push!(coupstates, state2id(state))
+  end
+  
+  state = broadcast(-, digits(id-1, base=3, pad=n), 1)
+
+  if state[i]==-1 && state[j]==1
+    state[i] += 2
+    state[j] -= 2
+    push!(coupstates, state2id(state))
+  end
+   
+  return coupstates
+end
+
+
 """
 # inith - 2 method function
 
@@ -150,14 +236,99 @@ function inith(bc::Bool, n::Int, D::Float64)
   for a=1:3^n
     bc ? m=n : m=n-1 # select number of bonds based on boundary conditions
     for i=1:m
+      
       j = (i%n)+1 # determine nearest neighbour
       s1 = spin(a, n, i) 
       s2 = spin(a, n, j) 
       H[a, a] += s1*s2 + (D/2.0)*(s1^2 + s2^2)
+      
       coupstates = spinflips(a, n, i, j)
       for b in coupstates
         H[a, b] += 1
       end
+
+    end
+  end
+  return H
+end
+
+
+function inith(bc::Bool, n::Int, D::Float64, h::Float64, β::Float64)
+  H = zeros(3^n, 3^n) # initialize empty Hamiltonian
+  for a=1:3^n
+    bc ? m=n : m=n-1 # select number of bonds based on boundary conditions
+    for i=1:m
+      j = (i%n)+1 # determine nearest neighbour
+      s1 = spin(a, n, i) 
+      s2 = spin(a, n, j) 
+      H[a, a] += s1*s2 - β*(s1^2)*(s2^2) + (D/2.0)*(s1^2 + s2^2) + (h/2.0)*(s1+s2)
+      
+      if (s1==s2 && abs(s1) == 0) 
+        H[a, a] -= 2*β
+      end
+      
+      if (s1==-s2 && s1 !=0)
+        H[a,a] -= β
+      end
+
+      if(s1==0 && abs(s2)==1) || (abs(s1)==1 && s2==0)
+        H[a,a] -= β
+      end
+
+      coupstates = spinflips(a, n, i, j)
+      for b in coupstates
+        sb1 = spin(b, n, i)
+        sb2 = spin(b, n, j)
+        H[a, b] += 1 - β*sb1*sb2-β*s1*s2
+      end
+
+      doubcoupstates = doubspinflips(a, n, i, j)
+      for b in doubcoupstates
+        H[a,b] += -β
+      end
+
+    end
+  end
+  return H
+end
+
+
+function inith(bondlst::Array{Any,1}, n::Int, D::Float64, h::Float64, β::Float64)
+  H = zeros(3^n, 3^n) # initialize empty Hamiltonian
+  for a=1:3^n
+    for bond in bondlst
+      
+      i = bond[1]
+      j = bond[2]
+
+      s1 = spin(a, n, i) 
+      s2 = spin(a, n, j) 
+      H[a, a] += s1*s2 - β*(s1^2)*(s2^2) + (D/2.0)*(s1^2 + s2^2) + (h/2.0)*(s1+s2)
+      
+      if (s1==s2 && abs(s1) == 0) 
+        H[a, a] -= 2*β
+      end
+      
+      if (s1==-s2 && s1 !=0)
+        H[a,a] -= β
+      end
+
+      if(s1==0 && abs(s2)==1) || (abs(s1)==1 && s2==0)
+        H[a,a] -= β
+      end
+
+      coupstates = spinflips(a, n, i, j)
+      for b in coupstates
+        sb1 = spin(b, n, i)
+        sb2 = spin(b, n, j)
+        H[a, b] += 1 - β*sb1*sb2-β*s1*s2
+      end
+
+      doubcoupstates = doubspinflips(a, n, i, j)
+      for b in doubcoupstates
+        H[a,b] += -β
+      end
+
     end
   end
   return H
