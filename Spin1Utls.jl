@@ -61,6 +61,63 @@ end
 
 
 """
+# honeycomb lattice - 1 member function
+"""
+function honeycombLattice(bcx::Bool, bcy::Bool, lx::Int, ly::Int)
+  
+  chlen = 2*lx
+  nchains = ly
+  nsites = 2*lx*ly
+ 
+  bcx ? mch=nchains : mch = nchains - 1
+  bcy ? mcl=chlen   : mcl = chlen - 1
+
+  bonds = []
+  
+  for chain=0:(nchains-1)
+    
+    offset = chain * chlen
+
+    # x and y bonds
+    for r=1:mcl
+      rstrt = offset+1
+      rend = offset + chlen
+
+      rpos1::Int64 = r+offset
+      rpos2::Int64 = 0 # this is just a placeholder value
+    
+      # periodic boundary conditions
+      if (rpos1==rend) rpos2=rstrt else rpos2 = rpos1+1 end
+     
+      # consistently choose the first position to be on sublattice A
+      if ((rpos1%2)==0)
+        bond = [rpos1, rpos2]
+        push!(bonds, bond)
+      else
+        bond = [rpos2, rpos1]
+        push!(bonds, bond)
+      end
+    
+    end
+
+  end
+  
+  # z bonds
+  for chain=0:(mch-1)
+    offset = chain * chlen
+    for r=2:2:chlen 
+      rpos1::Int64 = r + offset
+      rpos2::Int64 = (rpos1+chlen-1) % (nsites+1) + (rpos1+chlen-1)÷(nsites+1)
+      bond = [rpos1, rpos2]
+      push!(bonds, bond)
+    end
+  end
+
+  return bonds
+end
+
+
+"""
 # state2id - 1 method function
 
 ## Methods
