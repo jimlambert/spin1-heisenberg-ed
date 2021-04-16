@@ -477,4 +477,71 @@ function initMagBlock(bc::Bool, n::Int, mz::Int, D::Float64)
   return H
 end
 
+
+"""
+initσz - initialize the Pauli z matrix
+
+"""
+function initσz(n::Int, i::Int)
+
+  id = [[1,0,0] [0,1,0] [0,0,1]]
+  σz = [[1,0,0] [0,0,0] [0,0,-1]]
+
+  if i==1
+    tot = σz
+    for i=2:n
+      tot = kron(tot,id)
+    end
+    return tot
+  else
+    tot = id
+    for j=2:(i-1)
+      tot = kron(tot,id)
+    end
+    tot = kron(tot,σz)
+    for j=(i+1):n
+      tot = kron(tot,id)
+    end
+    return tot
+  end
+end
+
+
+function initσx(n::Int, i::Int)
+
+  e = sqrt(2)/2
+
+  id = [[1,0,0] [0,1,0] [0,0,1]]
+  σx = [[0,e,0] [e,0,e] [0,e,0]]
+
+  if i==1
+    tot = σx
+    for i=2:n
+      tot = kron(tot,id)
+    end
+    return tot
+  else
+    tot = id
+    for j=2:(i-1)
+      tot = kron(tot,id)
+    end
+    tot = kron(tot,σx)
+    for j=(i+1):n
+      tot = kron(tot,id)
+    end
+    return tot
+  end
+end
+
+
+"""
+initmagop - Initialize magnetization operator
+"""
+function initmagop(k::Int, n::Int)
+  tot=0
+  for r=1:n
+
+  end
+end
+
 end # module Spin1Utls
